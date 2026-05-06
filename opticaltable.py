@@ -150,10 +150,14 @@ class OpticalTable:
         self.elements.append(box)
 
         return box
+    
+    def aom(self,x,y,rot, scale=1, label='', label_pos='below', labelpad=0, labelsize=5, fliplabel=False):
+        aom  = AOM(x,y,rot,scale=scale, label=label, label_pos=label_pos, labelpad=labelpad, labelsize=labelsize, fliplabel=fliplabel)
+        self.elements.append(aom)
+        return aom
 
     def pathObject(self,x,y):
-        po = PathObject(x,y)
-        return po
+        return PathObject(x,y)      
 
     def beam(self, beampath, color, size=1, fiber=False, arrows=False):
         j = 0
@@ -175,13 +179,12 @@ class OpticalTable:
 
 class OpticalElement:
 
-    def __init__(self, xpos, ypos, mode='r', scale=1, rot=None, element_id=None, label=None, label_pos='above', labelpad=0, labelsize=5, fliplabel=False):
+    def __init__(self, xpos, ypos, scale=1, rot=None, element_id=None, label=None, label_pos='above', labelpad=0, labelsize=5, fliplabel=False):
         self.element_id = element_id
         self.xpos = xpos
         self.ypos = ypos
         self.scale = scale
         self.rot = rot
-        self.mode = mode
         self.label = label
         self.label_pos = label_pos
         self.labelpad = labelpad
@@ -190,10 +193,11 @@ class OpticalElement:
 
 class Mirror(OpticalElement):
     
-    def __init__(self, xpos, ypos, dX, dY, label, label_pos, mode='r', scale=1, rot=None, element_id=None, labelpad=0, labelsize=5, fliplabel=False):
-        super().__init__(xpos, ypos, mode, scale, rot, element_id, label, label_pos, labelpad, labelsize, fliplabel)
+    def __init__(self, xpos, ypos, dX, dY, label, label_pos, scale=1, rot=None, element_id=None, labelpad=0, labelsize=5, fliplabel=False):
+        super().__init__(xpos, ypos, scale, rot, element_id, label, label_pos, labelpad, labelsize, fliplabel)
         self.dX = dX
         self.dY = dY
+        self.element_id = 'mirror'
 
     def draw(self, tbl):
         #tbl.move_to(self.xpos-self.dX, self.ypos-self.dY)
@@ -256,7 +260,8 @@ class Mirror(OpticalElement):
 class GenericBox(OpticalElement):
 
     def __init__(self, xpos, ypos, width, height, rot=0, color=(0,0,0), fill=None, fillcolor=(0,0,0), mode='r', scale=1, element_id=None, label=None, label_pos='inside', labelpad=0, labelsize=5, fliplabel=False):
-        super().__init__(xpos, ypos, mode, scale, rot, element_id, label, label_pos, labelpad, labelsize, fliplabel)
+        super().__init__(xpos, ypos, scale, rot, element_id, label, label_pos, labelpad, labelsize, fliplabel)
+        self.element_id = 'genericBox'
         self.width = width
         self.height = height
         self.color = color
@@ -314,7 +319,85 @@ class GenericBox(OpticalElement):
         
         
         tbl.stroke()
+
+class AOM(OpticalElement):
+    def __init__(self, xpos, ypos,rot, scale=1, element_id=None, label=None, label_pos='above', labelpad=0, labelsize=5, fliplabel=False):
+        super().__init__(xpos, ypos, scale, rot, element_id, label, label_pos, labelpad, labelsize, fliplabel)
+        self.element_id = 'aom'
+        self.width = 43.75*self.scale
+        self.height = 25*self.scale
     
+    def draw(self, tbl):
+        centerbox  = Tools.get_corners(self.xpos,self.ypos,self.width,self.height,self.rot)
+        outerbox = Tools.get_corners(self.xpos,self.ypos,self.width+(0.5*self.width),self.height+2.5,self.rot)
+        backbox = Tools.get_corners(self.xpos,self.ypos,self.width+5,self.height+5,self.rot)
+
+        tbl.move_to(backbox[0][0],backbox[0][1])
+        tbl.line_to(backbox[1][0],backbox[1][1])
+        tbl.line_to(backbox[2][0],backbox[2][1])
+        tbl.line_to(backbox[3][0],backbox[3][1])
+        tbl.line_to(backbox[0][0],backbox[0][1])
+        tbl.line_to(backbox[1][0],backbox[1][1])
+        tbl.fill_preserve()
+        tbl.stroke()
+
+        tbl.move_to(outerbox[0][0],outerbox[0][1])
+        tbl.line_to(outerbox[1][0],outerbox[1][1])
+        tbl.line_to(outerbox[2][0],outerbox[2][1])
+        tbl.line_to(outerbox[3][0],outerbox[3][1])
+        tbl.line_to(outerbox[0][0],outerbox[0][1])
+        tbl.line_to(outerbox[1][0],outerbox[1][1])
+        midStartA = Tools.get_midpoint((outerbox[1][0],outerbox[1][1]), (outerbox[2][0],outerbox[2][1]))
+        midEndA= Tools.get_midpoint((outerbox[0][0],outerbox[0][1]), (outerbox[3][0],outerbox[3][1]))
+        patternA = cairo.LinearGradient(midStartA[0],midStartA[1],midEndA[0],midEndA[1])
+        patternA.add_color_stop_rgb(0, 1,1,1)
+        patternA.add_color_stop_rgb(0.5, 0,0,0)
+        patternA.add_color_stop_rgb(1, 1,1,1)
+        tbl.set_source(patternA)
+        tbl.fill_preserve()
+        tbl.set_source_rgb(0,0,0)
+        tbl.stroke()
+
+        tbl.move_to(centerbox[0][0],centerbox[0][1])
+        tbl.line_to(centerbox[1][0],centerbox[1][1])
+        tbl.line_to(centerbox[2][0],centerbox[2][1])
+        tbl.line_to(centerbox[3][0],centerbox[3][1])
+        tbl.line_to(centerbox[0][0],centerbox[0][1])
+        tbl.line_to(centerbox[1][0],centerbox[1][1])
+        midStartB = Tools.get_midpoint((centerbox[1][0],centerbox[1][1]), (centerbox[2][0],centerbox[2][1]))
+        midEndB= Tools.get_midpoint((centerbox[0][0],centerbox[0][1]), (centerbox[3][0],centerbox[3][1]))
+        patternB = cairo.LinearGradient(midStartB[0],midStartB[1],midEndB[0],midEndB[1])
+        patternB.add_color_stop_rgb(0, 1,1,1)
+        patternB.add_color_stop_rgb(0.1, 0.7, 0.8, 1)
+        patternB.add_color_stop_rgb(0.2, 1,1,1)
+        patternB.add_color_stop_rgb(0.3, 0.7, 0.8, 1)
+        patternB.add_color_stop_rgb(0.4, 1,1,1)
+        patternB.add_color_stop_rgb(0.5, 0.7, 0.8, 1)
+        patternB.add_color_stop_rgb(0.6, 1,1,1)
+        patternB.add_color_stop_rgb(0.7, 0.7, 0.8, 1)
+        patternB.add_color_stop_rgb(0.8, 1,1,1)
+        patternB.add_color_stop_rgb(0.9, 0.7, 0.8, 1)
+        patternB.add_color_stop_rgb(1, 1,1,1)
+        tbl.set_source(patternB)
+        tbl.fill_preserve()
+        tbl.set_source_rgb(0,0,0)
+        tbl.stroke()
+
+        length = 0.1*self.width
+        radius= self.width/4
+        tbl.move_to(centerbox[1][0] + length*Tools.cosd(self.rot),centerbox[1][1] + length*Tools.sind(self.rot))
+        tbl.rel_line_to(length/2*Tools.sind(self.rot), -length/2*Tools.cosd(self.rot))
+        tbl.arc(centerbox[1][0] + length*Tools.cosd(self.rot) + length/2*Tools.sind(self.rot) + radius*Tools.cosd(self.rot), centerbox[1][1] + length*Tools.sind(self.rot) - length/2*Tools.cosd(self.rot) + radius*Tools.sind(self.rot), radius, np.pi + Tools.deg_to_rad(self.rot), 3/2*np.pi + Tools.deg_to_rad(self.rot))
+        tbl.rel_line_to(0.3*self.width*Tools.cosd(self.rot), 0.3*self.width*Tools.sind(self.rot))
+        tbl.arc(centerbox[1][0] + length*Tools.cosd(self.rot) + length/2*Tools.sind(self.rot) + radius*Tools.cosd(self.rot) + 0.3*self.width*Tools.cosd(self.rot), centerbox[1][1] + length*Tools.sind(self.rot) - length/2*Tools.cosd(self.rot) + radius*Tools.sind(self.rot) + 0.3*self.width*Tools.sind(self.rot), radius, 3/2*np.pi + Tools.deg_to_rad(self.rot), 0 + Tools.deg_to_rad(self.rot))
+        tbl.rel_line_to(-length/2*Tools.sind(self.rot), length/2*Tools.cosd(self.rot))
+        tbl.fill_preserve()
+
+        tbl.stroke()
+
+
+
+
 class PathObject:
 
     def __init__(self, x,y):
@@ -322,7 +405,7 @@ class PathObject:
         self.ypos = y
 
     def draw():
-        return
+        pass
 
 
 
